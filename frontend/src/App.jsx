@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home.jsx';
 import CelebrityProfile from './pages/CelebrityProfile.jsx';
 import PostDetail from './pages/PostDetail.jsx';
 import StyleSwap from './pages/StyleSwap.jsx';
+import StyleBook from './pages/StyleBook.jsx';
 import ImageUploader from './components/ImageUploader.jsx';
 import ClothingCard from './components/ClothingCard.jsx';
+import { useBookmark } from './hooks/useBookmark.js';
 
 export default function App() {
   return (
@@ -17,16 +19,28 @@ export default function App() {
         <Route path="/post/:id" element={<PostDetail />} />
         <Route path="/analyze" element={<AnalyzePage />} />
         <Route path="/swap" element={<StyleSwap />} />
+        <Route path="/stylebook" element={<StyleBook />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
 function GlobalNav() {
+  const location = useLocation();
+  const { bookmarks } = useBookmark();
+  const bookmarkTotal = (bookmarks.celebrities?.length || 0) + (bookmarks.news?.length || 0) + (bookmarks.items?.length || 0);
+
+  const linkStyle = (path) => ({
+    fontSize: 14,
+    color: location.pathname === path ? '#111' : '#555',
+    fontWeight: location.pathname === path ? 700 : 400,
+    textDecoration: 'none',
+  });
+
   return (
     <nav style={{
       borderBottom: '1px solid #eee',
-      padding: '0 20px',
+      padding: '0 40px',
       display: 'flex',
       alignItems: 'center',
       height: 56,
@@ -35,15 +49,42 @@ function GlobalNav() {
       top: 0,
       zIndex: 100,
     }}>
-      <div style={{ maxWidth: 960, width: '100%', margin: '0 auto', display: 'flex', alignItems: 'center', gap: 32 }}>
-        <Link to="/" style={{ fontWeight: 700, fontSize: 16, color: '#111', textDecoration: 'none', letterSpacing: '-0.3px' }}>
+      <div style={{ maxWidth: 1100, width: '100%', margin: '0 auto', display: 'flex', alignItems: 'center', gap: 28 }}>
+        {/* 로고 */}
+        <Link to="/" style={{ fontWeight: 800, fontSize: 16, color: '#111', textDecoration: 'none', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: 'linear-gradient(135deg, #f472b6, #818cf8)', flexShrink: 0 }} />
           Celebrity Fashion
         </Link>
-        <Link to="/analyze" style={{ fontSize: 14, color: '#555', textDecoration: 'none' }}>
+
+        {/* 가운데 링크 */}
+        <Link to="/#feed" style={linkStyle('/#feed')} onClick={(e) => {
+          if (location.pathname === '/') {
+            e.preventDefault();
+            document.getElementById('celeb-feed')?.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}>
+          셀럽 피드
+        </Link>
+        <Link to="/analyze" style={linkStyle('/analyze')}>
           패션 분석
         </Link>
-        <Link to="/swap" style={{ fontSize: 14, color: '#555', textDecoration: 'none' }}>
+        <Link to="/swap" style={linkStyle('/swap')}>
           스타일 스왑
+        </Link>
+
+        {/* 우측 */}
+        <Link to="/stylebook" style={{ ...linkStyle('/stylebook'), marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          🔖 내 스타일북
+          {bookmarkTotal > 0 && (
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              background: 'linear-gradient(135deg, #f472b6, #818cf8)',
+              color: '#fff',
+              padding: '1px 7px', borderRadius: 99,
+            }}>
+              {bookmarkTotal}
+            </span>
+          )}
         </Link>
       </div>
     </nav>
@@ -57,6 +98,7 @@ function AnalyzePage() {
   const [error, setError] = useState('');
   const [preview, setPreview] = useState('');
   const [celebrityName, setCelebrityName] = useState('');
+  const { toggle, isBookmarked } = useBookmark();
 
   async function handleAnalyze(imageBase64, mediaType, previewUrl) {
     setLoading(true);
@@ -176,7 +218,12 @@ function AnalyzePage() {
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {items.map((item) => (
-                  <ClothingCard key={item.id} item={item} />
+                  <ClothingCard
+                    key={item.id}
+                    item={item}
+                    bookmarked={isBookmarked('items', item.id)}
+                    onBookmark={() => toggle('items', item)}
+                  />
                 ))}
               </div>
             </div>

@@ -23,6 +23,9 @@ app.use('/api/celebrities', celebritiesRoute);
 app.use('/api/news', newsRoute);
 app.use('/api/swap', swapRoute);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`백엔드 서버 실행 중: http://localhost:${PORT}`);
 });
+
+server.timeout = 300000;       // 5분
+server.keepAliveTimeout = 310000;

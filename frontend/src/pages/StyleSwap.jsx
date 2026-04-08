@@ -380,12 +380,12 @@ function SwapResult({ result, previewA, previewB, activeTab, setActiveTab, nameA
                 💬 {swapData.styleComment}
               </div>
 
-              {/* 아이템 리스트 */}
+              {/* 아이템 리스트 — 스왑 대상(originalPerson)의 의상 아이템 */}
               <p style={{ fontSize: 12, fontWeight: 600, color: '#aaa', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 착용 아이템
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {swapData.items.map((item, i) => (
+                {(originalPerson.outfit.items || []).map((item, i) => (
                   <a
                     key={i}
                     href={`https://search.shopping.naver.com/search/all?query=${encodeURIComponent(item.searchQuery)}`}

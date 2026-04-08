@@ -25,6 +25,7 @@ export default function ImageUploader({ onAnalyze, loading }) {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [btnHovered, setBtnHovered] = useState(false);
 
   function handleFile(file) {
     if (!file || !file.type.startsWith('image/')) return;
@@ -107,21 +108,56 @@ export default function ImageUploader({ onAnalyze, loading }) {
         <button
           onClick={handleSubmit}
           disabled={!selectedFile || loading}
+          onMouseEnter={() => setBtnHovered(true)}
+          onMouseLeave={() => setBtnHovered(false)}
           style={{
             flex: previewUrl ? 1 : undefined,
             width: previewUrl ? undefined : '100%',
-            padding: '10px 24px',
-            borderRadius: 8,
+            padding: '13px 28px',
+            borderRadius: 12,
             border: 'none',
-            background: selectedFile && !loading ? '#111' : '#ccc',
-            color: '#fff',
-            fontSize: 14,
-            fontWeight: 600,
-            transition: 'background 0.2s',
+            background: loading
+              ? 'linear-gradient(135deg, #f9a8d4, #a5b4fc)'
+              : !selectedFile
+              ? '#e5e7eb'
+              : btnHovered
+              ? 'linear-gradient(135deg, #e879a8, #6d5ce7)'
+              : 'linear-gradient(135deg, #f472b6, #818cf8)',
+            color: !selectedFile ? '#aaa' : '#fff',
+            fontSize: 15,
+            fontWeight: 700,
+            letterSpacing: '-0.2px',
+            cursor: !selectedFile || loading ? 'not-allowed' : 'pointer',
+            boxShadow: selectedFile && !loading
+              ? btnHovered
+                ? '0 8px 28px rgba(244,114,182,0.5)'
+                : '0 4px 18px rgba(244,114,182,0.35)'
+              : 'none',
+            transform: selectedFile && !loading && btnHovered ? 'translateY(-1px)' : 'none',
+            transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
           }}
         >
-          {loading ? '분석 중...' : '분석 시작'}
+          {loading ? (
+            <>
+              <span style={{
+                width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)',
+                borderTopColor: '#fff', borderRadius: '50%',
+                display: 'inline-block',
+                animation: 'spin 0.7s linear infinite',
+              }} />
+              분석 중...
+            </>
+          ) : (
+            <>
+              ✦ 분석 시작
+            </>
+          )}
         </button>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     </div>
   );

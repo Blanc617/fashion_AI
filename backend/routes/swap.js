@@ -1,10 +1,9 @@
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
-import Replicate from 'replicate';
+import { Client, handle_file } from '@gradio/client';
 
 const router = express.Router();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
 
 // Claude로 두 사람 옷 분석
 async function analyzeOutfits(imageA, mediaTypeA, nameA, imageB, mediaTypeB, nameB) {
@@ -85,31 +84,70 @@ JSON만 응답해. 마크다운 없이.`;
   return JSON.parse(text);
 }
 
-const IDM_VTON_VERSION = '0513734a452173b8173e907e3a59d19a36266e55b48528559432bd21c7d7e985';
+// HuggingFace Spaces IDM-VTON으로 합성 이미지 생성
+async function generateTryOn(humanImageBase64, humanMediaType, garmentImageBase64, garmentMediaType, garmentDesc, retries = 2) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await _generateTryOnOnce(humanImageBase64, humanMediaType, garmentImageBase64, garmentMediaType, garmentDesc);
+    } catch (e) {
+      const isGpuError = e.message?.includes('No GPU was available') || e.message?.includes('quota');
+      if (isGpuError && attempt < retries) {
+        console.log(`GPU 미사용 가능 (시도 ${attempt}/${retries}), 8초 후 재시도...`);
+        await new Promise(r => setTimeout(r, 8000));
+        continue;
+      }
+      throw e;
+    }
+  }
+}
 
-// Replicate IDM-VTON으로 합성 이미지 생성
-async function generateTryOn(humanImageBase64, humanMediaType, garmentImageBase64, garmentMediaType, garmentDesc, category) {
-  const humanDataUri = `data:${humanMediaType};base64,${humanImageBase64}`;
-  const garmentDataUri = `data:${garmentMediaType};base64,${garmentImageBase64}`;
+async function _generateTryOnOnce(humanImageBase64, humanMediaType, garmentImageBase64, garmentMediaType, garmentDesc) {
+  const humanBlob = new Blob(
+    [Buffer.from(humanImageBase64, 'base64')],
+    { type: humanMediaType }
+  );
+  const garmentBlob = new Blob(
+    [Buffer.from(garmentImageBase64, 'base64')],
+    { type: garmentMediaType }
+  );
 
-  let prediction = await replicate.predictions.create({
-    version: IDM_VTON_VERSION,
-    input: {
-      human_img: humanDataUri,
-      garm_img: garmentDataUri,
-      garment_des: garmentDesc || 'fashion outfit',
-      is_checked: true,
-      is_checked_crop: false,
-      denoise_steps: 30,
-      seed: 42,
-    },
+  const hfToken = process.env.HF_TOKEN;
+  console.log(`HF 토큰: ${hfToken ? hfToken.slice(0, 10) + '...' : '없음'}`);
+
+  // hf_token 과 headers 두 방식 모두 시도
+  const connectOptions = hfToken
+    ? { hf_token: hfToken, headers: { Authorization: `Bearer ${hfToken}` } }
+    : {};
+
+  const app = await Client.connect('Nymbo/Virtual-Try-On', connectOptions);
+  console.log('Space 연결 완료, 예측 시작...');
+
+  const result = await app.predict('/tryon', {
+    dict: { background: handle_file(humanBlob), layers: [], composite: null },
+    garm_img: handle_file(garmentBlob),
+    garment_des: garmentDesc || 'fashion outfit',
+    is_checked: true,
+    is_checked_crop: false,
+    denoise_steps: 30,
+    seed: 42,
   });
 
-  prediction = await replicate.wait(prediction);
+  const output = result.data?.[0];
+  if (!output) throw new Error('HuggingFace Space에서 결과를 받지 못했습니다.');
 
-  const output = prediction.output;
-  if (Array.isArray(output)) return output[0];
-  return output;
+  const imageUrl = typeof output === 'string' ? output : output.url;
+
+  // CORS 우회: 백엔드에서 이미지 다운로드 후 base64로 변환
+  const imgRes = await fetch(imageUrl, {
+    headers: { Authorization: `Bearer ${process.env.HF_TOKEN}` },
+  });
+  if (!imgRes.ok) throw new Error(`이미지 다운로드 실패: ${imgRes.status}`);
+
+  const arrayBuffer = await imgRes.arrayBuffer();
+  const base64 = Buffer.from(arrayBuffer).toString('base64');
+  const contentType = imgRes.headers.get('content-type') || 'image/png';
+
+  return `data:${contentType};base64,${base64}`;
 }
 
 // POST /api/swap
@@ -122,41 +160,34 @@ router.post('/', async (req, res) => {
     console.log('Claude 분석 중...');
     const analysis = await analyzeOutfits(imageA, mediaTypeA, nameA, imageB, mediaTypeB, nameB);
 
-    // 2단계: Replicate 합성 (순차 실행 — 무료 계정 rate limit 대응)
-    console.log('Replicate 합성 이미지 생성 중...');
+    // 2단계: HuggingFace Spaces IDM-VTON 합성 (실패해도 분석 결과는 반환)
+    // GPU 경쟁 방지를 위해 순차 실행
     let generatedA = null, generatedB = null;
 
+    console.log('A 합성 시작...');
     try {
-      generatedA = await generateTryOn(
-        imageA, mediaTypeA,
-        imageB, mediaTypeB,
-        analysis.personB.outfit.garmentDesc,
-        analysis.personB.outfit.category,
-      );
-      console.log('A 합성 완료:', generatedA);
+      generatedA = await generateTryOn(imageA, mediaTypeA, imageB, mediaTypeB, analysis.personB.outfit.garmentDesc);
+      console.log('A 합성 완료');
     } catch (e) {
       console.error('A 합성 오류:', e.message);
     }
 
-    // rate limit 방지 대기
-    await new Promise(r => setTimeout(r, 3000));
+    console.log('B 합성 시작 전 5초 대기...');
+    await new Promise(r => setTimeout(r, 5000));
 
+    console.log('B 합성 시작...');
     try {
-      generatedB = await generateTryOn(
-        imageB, mediaTypeB,
-        imageA, mediaTypeA,
-        analysis.personA.outfit.garmentDesc,
-        analysis.personA.outfit.category,
-      );
-      console.log('B 합성 완료:', generatedB);
+      generatedB = await generateTryOn(imageB, mediaTypeB, imageA, mediaTypeA, analysis.personA.outfit.garmentDesc);
+      console.log('B 합성 완료');
     } catch (e) {
       console.error('B 합성 오류:', e.message);
     }
 
+    // 합성 실패해도 Claude 분석 결과는 정상 반환
     res.json({
       ...analysis,
-      generatedA,  // A가 B 옷 입은 이미지 URL
-      generatedB,  // B가 A 옷 입은 이미지 URL
+      generatedA,
+      generatedB,
     });
   } catch (e) {
     console.error('Swap 분석 오류:', e.message);

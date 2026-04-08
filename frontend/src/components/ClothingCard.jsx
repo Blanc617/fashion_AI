@@ -13,7 +13,7 @@ const TIER_STYLE = {
   '저가':   { background: '#f0fdf4', color: '#16a34a', label: '● 저가' },
 };
 
-export default function ClothingCard({ item }) {
+export default function ClothingCard({ item, bookmarked = false, onBookmark }) {
   const shoppingUrl = `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(item.searchQuery)}`;
   const icon = CATEGORY_ICON[item.category] || '👗';
   const tier = TIER_STYLE[item.priceTier];
@@ -82,28 +82,50 @@ export default function ClothingCard({ item }) {
         </div>
       </div>
 
-      <a
-        href={shoppingUrl}
-        target="_blank"
-        rel="noreferrer"
-        style={{
-          flexShrink: 0,
-          padding: '8px 16px',
-          borderRadius: 8,
-          border: '1px solid #111',
-          background: '#fff',
-          color: '#111',
-          fontSize: 13,
-          fontWeight: 500,
-          whiteSpace: 'nowrap',
-          transition: 'all 0.2s',
-          display: 'inline-block',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#111'; e.currentTarget.style.color = '#fff'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#111'; }}
-      >
-        네이버 쇼핑 검색 →
-      </a>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        {onBookmark && (
+          <button
+            onClick={onBookmark}
+            title={bookmarked ? '저장 해제' : '스타일북에 저장'}
+            style={{
+              padding: '8px 10px',
+              borderRadius: 8,
+              border: bookmarked ? '1px solid #f472b6' : '1px solid #ddd',
+              background: bookmarked ? '#fff0f7' : '#fff',
+              color: bookmarked ? '#ec4899' : '#bbb',
+              fontSize: 16,
+              cursor: 'pointer',
+              transition: 'all 0.18s',
+            }}
+            onMouseEnter={(e) => { if (!bookmarked) { e.currentTarget.style.borderColor = '#f9a8d4'; e.currentTarget.style.color = '#ec4899'; } }}
+            onMouseLeave={(e) => { if (!bookmarked) { e.currentTarget.style.borderColor = '#ddd'; e.currentTarget.style.color = '#bbb'; } }}
+          >
+            {bookmarked ? '🔖' : '🔖'}
+          </button>
+        )}
+        <a
+          href={shoppingUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            flexShrink: 0,
+            padding: '8px 16px',
+            borderRadius: 8,
+            border: '1px solid #111',
+            background: '#fff',
+            color: '#111',
+            fontSize: 13,
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            transition: 'all 0.2s',
+            display: 'inline-block',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#111'; e.currentTarget.style.color = '#fff'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#111'; }}
+        >
+          네이버 쇼핑 검색 →
+        </a>
+      </div>
     </div>
   );
 }
