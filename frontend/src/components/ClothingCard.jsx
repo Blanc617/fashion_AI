@@ -13,20 +13,25 @@ const TIER_STYLE = {
   '저가':   { background: '#f0fdf4', color: '#16a34a', label: '● 저가' },
 };
 
-export default function ClothingCard({ item, bookmarked = false, onBookmark }) {
-  const shoppingUrl = `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(item.searchQuery)}`;
+export default function ClothingCard({ item, bookmarked = false, onBookmark, budget = 0 }) {
+  const budgetParams = budget > 0
+    ? `&price_from=0&price_to=${budget}`
+    : '';
+  const shoppingUrl = `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(item.searchQuery)}${budgetParams}`;
+  const overBudget = budget > 0 && item.estimatedPrice > 0 && item.estimatedPrice > budget;
   const icon = CATEGORY_ICON[item.category] || '👗';
   const tier = TIER_STYLE[item.priceTier];
 
   return (
     <div style={{
-      background: '#fff',
-      border: '1px solid #eee',
+      background: overBudget ? '#fffaf9' : '#fff',
+      border: `1px solid ${overBudget ? '#fdd' : '#eee'}`,
       borderRadius: 12,
       padding: '16px 20px',
       display: 'flex',
       alignItems: 'center',
       gap: 16,
+      position: 'relative',
     }}>
       <div style={{
         width: 48,
@@ -75,8 +80,20 @@ export default function ClothingCard({ item, bookmarked = false, onBookmark }) {
           <Tag label={`색상: ${item.color}`} />
           <Tag label={`소재: ${item.material}`} />
           {item.estimatedPrice > 0 && (
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#111', marginLeft: 2 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: overBudget ? '#e53e3e' : '#111', marginLeft: 2 }}>
               약 {item.estimatedPrice.toLocaleString('ko-KR')}원
+            </span>
+          )}
+          {overBudget && (
+            <span style={{
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '2px 7px',
+              borderRadius: 20,
+              background: '#fee2e2',
+              color: '#e53e3e',
+            }}>
+              예산 초과
             </span>
           )}
         </div>

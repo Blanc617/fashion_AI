@@ -130,15 +130,10 @@ router.get('/', async (req, res) => {
 
   try {
     // 기사 목록 수집
-    const [page1, page2, page3] = await Promise.all([
-      fetchFashionnList(keyword, 1),
-      fetchFashionnList(keyword, 2),
-      fetchFashionnList(keyword, 3),
-    ]);
-
-    const merged = [...page1, ...page2, ...page3];
+    const pages = await Promise.all([1,2,3,4,5,6,7,8].map(p => fetchFashionnList(keyword, p)));
+    const merged = pages.flat();
     // filterWord로 제목 필터 (예: 'BTS 뷔' 포함 기사만)
-    const allArticles = merged.filter(a => a.title.includes(filterWord)).slice(0, 12);
+    const allArticles = merged.filter(a => a.title.includes(filterWord)).slice(0, 25);
 
     if (allArticles.length === 0) return res.json([]);
 
