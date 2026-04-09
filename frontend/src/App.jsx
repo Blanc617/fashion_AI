@@ -3,8 +3,10 @@ import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 're
 import Home from './pages/Home.jsx';
 import CelebrityProfile from './pages/CelebrityProfile.jsx';
 import PostDetail from './pages/PostDetail.jsx';
-import StyleSwap from './pages/StyleSwap.jsx';
 import StyleBook from './pages/StyleBook.jsx';
+import Trends from './pages/Trends.jsx';
+import PersonalColor from './pages/PersonalColor.jsx';
+import BodyType from './pages/BodyType.jsx';
 import ImageUploader from './components/ImageUploader.jsx';
 import ClothingCard from './components/ClothingCard.jsx';
 import { useBookmark } from './hooks/useBookmark.js';
@@ -18,7 +20,9 @@ export default function App() {
         <Route path="/celebrity/:id" element={<CelebrityProfile />} />
         <Route path="/post/:id" element={<PostDetail />} />
         <Route path="/analyze" element={<AnalyzePage />} />
-        <Route path="/swap" element={<StyleSwap />} />
+        <Route path="/trends" element={<Trends />} />
+        <Route path="/personal-color" element={<PersonalColor />} />
+        <Route path="/body-type" element={<BodyType />} />
         <Route path="/stylebook" element={<StyleBook />} />
       </Routes>
     </BrowserRouter>
@@ -68,8 +72,14 @@ function GlobalNav() {
         <Link to="/analyze" style={linkStyle('/analyze')}>
           패션 분석
         </Link>
-        <Link to="/swap" style={linkStyle('/swap')}>
-          스타일 스왑
+        <Link to="/trends" style={linkStyle('/trends')}>
+          트렌드
+        </Link>
+        <Link to="/personal-color" style={linkStyle('/personal-color')}>
+          퍼스널 컬러
+        </Link>
+        <Link to="/body-type" style={linkStyle('/body-type')}>
+          체형 분석
         </Link>
 
         {/* 우측 */}
@@ -92,12 +102,20 @@ function GlobalNav() {
 }
 
 // 기존 분석 페이지를 /analyze로 이동
+const BUDGET_PRESETS = [
+  { label: '5만원', value: 50000 },
+  { label: '10만원', value: 100000 },
+  { label: '30만원', value: 300000 },
+  { label: '50만원', value: 500000 },
+];
+
 function AnalyzePage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState('');
   const [celebrityName, setCelebrityName] = useState('');
+  const [budget, setBudget] = useState(0);
   const { toggle, isBookmarked } = useBookmark();
 
   async function handleAnalyze(imageBase64, mediaType, previewUrl) {
@@ -125,39 +143,81 @@ function AnalyzePage() {
   const totalBudget = items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0);
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 20px' }}>
-      <header style={{ marginBottom: 40 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px' }}>
-          패션 분석
-        </h1>
-        <p style={{ color: '#888', fontSize: 14, marginTop: 6 }}>
-          연예인 패션 사진을 업로드하면 의류 아이템을 분석하고 유사상품을 찾아드립니다.
-        </p>
-      </header>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 20px' }}>
 
-      <div style={{ marginBottom: 16 }}>
-        <input
-          type="text"
-          value={celebrityName}
-          onChange={(e) => setCelebrityName(e.target.value)}
-          placeholder="연예인 이름 입력 (선택사항) — 예: 제니, 아이유, BTS 뷔"
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: 10,
-            border: '1px solid #ddd',
-            fontSize: 14,
-            outline: 'none',
-            fontFamily: 'inherit',
-            background: '#fff',
-            boxSizing: 'border-box',
-          }}
-          onFocus={(e) => e.target.style.borderColor = '#111'}
-          onBlur={(e) => e.target.style.borderColor = '#ddd'}
-        />
+      {/* 헤더 */}
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #f472b6, #818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+            👗
+          </div>
+          <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.5px' }}>패션 분석</h1>
+        </div>
+        <p style={{ color: '#888', fontSize: 14, marginLeft: 48 }}>
+          연예인 패션 사진을 올리면 착용 아이템을 분석하고 유사 상품을 찾아드립니다.
+        </p>
       </div>
 
-      <ImageUploader onAnalyze={handleAnalyze} loading={loading} />
+      {/* 업로드 전: 2열 레이아웃 */}
+      {!items.length && !loading && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, marginBottom: 32, alignItems: 'start' }}>
+          {/* 왼쪽: 이용 방법 */}
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#aaa', letterSpacing: '0.5px', marginBottom: 16 }}>이용 방법</p>
+            {[
+              { num: '01', title: '사진 업로드', desc: '연예인 패션 사진을 드래그하거나 클릭해서 올려주세요' },
+              { num: '02', title: 'AI 아이템 분석', desc: 'Claude AI가 착용한 의류·액세서리를 자동으로 인식합니다' },
+              { num: '03', title: '유사 상품 탐색', desc: '각 아이템과 비슷한 상품을 네이버 쇼핑에서 바로 찾아드려요' },
+            ].map((step) => (
+              <div key={step.num} style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#818cf8', width: 20, flexShrink: 0, paddingTop: 2 }}>{step.num}</span>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 3 }}>{step.title}</p>
+                  <p style={{ fontSize: 13, color: '#888', lineHeight: 1.5 }}>{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 오른쪽: 입력 + 업로더 */}
+          <div>
+            <input
+              type="text"
+              value={celebrityName}
+              onChange={(e) => setCelebrityName(e.target.value)}
+              placeholder="연예인 이름 (선택) — 예: 제니, 아이유"
+              style={{
+                width: '100%', padding: '11px 14px', borderRadius: 10,
+                border: '1px solid #e8e8e8', fontSize: 14, outline: 'none',
+                fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box', marginBottom: 10,
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#818cf8'}
+              onBlur={(e) => e.target.style.borderColor = '#e8e8e8'}
+            />
+            <ImageUploader onAnalyze={handleAnalyze} loading={loading} />
+          </div>
+        </div>
+      )}
+
+      {/* 업로드 후 (결과 있거나 로딩 중): 입력 + 업로더를 단일 열로 */}
+      {(items.length > 0 || loading) && (
+        <div style={{ marginBottom: 24 }}>
+          <input
+            type="text"
+            value={celebrityName}
+            onChange={(e) => setCelebrityName(e.target.value)}
+            placeholder="연예인 이름 (선택) — 예: 제니, 아이유"
+            style={{
+              width: '100%', padding: '11px 14px', borderRadius: 10,
+              border: '1px solid #e8e8e8', fontSize: 14, outline: 'none',
+              fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box', marginBottom: 10,
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#818cf8'}
+            onBlur={(e) => e.target.style.borderColor = '#e8e8e8'}
+          />
+          <ImageUploader onAnalyze={handleAnalyze} loading={loading} />
+        </div>
+      )}
 
       {error && (
         <div style={{
@@ -184,6 +244,63 @@ function AnalyzePage() {
 
       {!loading && items.length > 0 && (
         <div style={{ marginTop: 40 }}>
+          {/* 예산 필터 */}
+          <div style={{
+            marginBottom: 24,
+            padding: '16px 20px',
+            background: '#f9f9f9',
+            borderRadius: 12,
+            border: '1px solid #eee',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#555', flexShrink: 0 }}>
+                아이템 예산 상한
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => setBudget(0)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 20,
+                    border: '1px solid',
+                    borderColor: budget === 0 ? '#111' : '#ddd',
+                    background: budget === 0 ? '#111' : '#fff',
+                    color: budget === 0 ? '#fff' : '#555',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    fontWeight: budget === 0 ? 600 : 400,
+                  }}
+                >
+                  제한없음
+                </button>
+                {BUDGET_PRESETS.map(p => (
+                  <button
+                    key={p.value}
+                    onClick={() => setBudget(p.value)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 20,
+                      border: '1px solid',
+                      borderColor: budget === p.value ? '#111' : '#ddd',
+                      background: budget === p.value ? '#111' : '#fff',
+                      color: budget === p.value ? '#fff' : '#555',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      fontWeight: budget === p.value ? 600 : 400,
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              {budget > 0 && (
+                <span style={{ fontSize: 12, color: '#888', marginLeft: 4 }}>
+                  — 네이버 쇼핑 검색 시 {budget.toLocaleString('ko-KR')}원 이하 상품만 표시
+                </span>
+              )}
+            </div>
+          </div>
+
           <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
             {preview && (
               <div style={{ flexShrink: 0 }}>
@@ -221,6 +338,7 @@ function AnalyzePage() {
                   <ClothingCard
                     key={item.id}
                     item={item}
+                    budget={budget}
                     bookmarked={isBookmarked('items', item.id)}
                     onBookmark={() => toggle('items', item)}
                   />

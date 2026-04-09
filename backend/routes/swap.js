@@ -119,7 +119,7 @@ async function _generateTryOnOnce(humanImageBase64, humanMediaType, garmentImage
     ? { hf_token: hfToken, headers: { Authorization: `Bearer ${hfToken}` } }
     : {};
 
-  const app = await Client.connect('Nymbo/Virtual-Try-On', connectOptions);
+  const app = await Client.connect('yisol/IDM-VTON', connectOptions);
   console.log('Space 연결 완료, 예측 시작...');
 
   const result = await app.predict('/tryon', {
